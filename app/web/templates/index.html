@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>ระบบตรวจโฆษณา — เงินให้ใจ</title>
+  <link rel="icon" href="/static/logo-nhj.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai+Looped:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
+  <script src="/static/htmx.min.js?v={{ asset_v }}" defer></script>
+  <script src="/static/app.js?v={{ asset_v }}" defer></script>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <img class="logo-img" src="/static/logo-nhj.svg" alt="เงินให้ใจ" width="66" height="45">
+    <span class="sep"></span>
+    <span class="tool"><span class="lb">Ad Compliance</span><b>ระบบตรวจโฆษณา</b></span>
+  </div>
+</header>
+
+<main id="content" class="doc">
+  <div class="submit-intro">
+    <div class="lb">ตรวจกับกฎทั้งชุด · รายงานต่อกฎพร้อมหลักฐาน</div>
+    <h1>ส่งโฆษณาเข้าตรวจ</h1>
+    <p>แนบรูปโฆษณา 1 ชิ้น ระบบตรวจกับกฎ compliance, dictionary และข้อความบังคับ แล้วสรุปเป็นรายงานให้อ่านก่อนตัดสิน</p>
+  </div>
+
+  <form id="check-form"
+        hx-post="/check-ui"
+        hx-target="#content"
+        hx-swap="innerHTML show:top"
+        hx-encoding="multipart/form-data"
+        hx-disabled-elt="find button">
+
+    <div class="form-body">
+      <div class="form-row">
+        <div class="side"><span class="lb">01 · รูปโฆษณา<span class="req">บังคับ — JPG / PNG</span></span></div>
+        <label class="dropzone" id="dropzone" for="file-input">
+          <input type="file" id="file-input" name="file" accept="image/jpeg,image/png,image/webp" required>
+          <span class="dz-prompt">
+            <svg class="ic" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="2.5" y="5.5" width="25" height="19" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 21l6-6 4.5 4.5L20 16l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            ลากรูปมาวาง หรือ <b>เลือกไฟล์</b>
+            <span class="hint">1 รูปต่อการตรวจ 1 ครั้ง</span>
+          </span>
+          <span class="dz-file">
+            <img id="dz-preview" alt="ตัวอย่างรูปที่เลือก">
+            <span class="dz-meta"><code id="dz-name"></code><span class="hint">คลิกเพื่อเปลี่ยนรูป</span></span>
+          </span>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <div class="side"><span class="lb">02 · แคปชัน<span class="req">ถ้าโพสต์มีข้อความ วางมาด้วย — ตรวจรวมกัน</span></span></div>
+        <textarea class="caption-input" name="text" placeholder="เช่น ข้อความที่จะโพสต์คู่กับรูปใน Facebook / LINE OA"></textarea>
+      </div>
+
+      <div class="submit-actions">
+        <button class="btn-primary" type="submit">ตรวจโฆษณา</button>
+        <span class="meta">ใช้เวลาประมาณ 10–40 วินาที</span>
+      </div>
+
+      <div class="foot-principle">
+        <span class="lb">หลักการ</span>
+        <span><b>AI อ่านให้ คนตัดสิน</b> — ระบบรายงานต่อกฎพร้อมหลักฐาน ไม่สรุปผ่าน/ไม่ผ่านแทนคุณ</span>
+      </div>
+    </div>
+
+    <div class="checking" id="checking">
+      <div class="t"><b>กำลังตรวจโฆษณา…</b><code id="checking-file"></code></div>
+      <div class="progress" role="progressbar" aria-label="กำลังตรวจ"><i></i></div>
+      <small>เทียบกับกฎทั้งชุด · dictionary · ข้อความบังคับ — ผลจะแสดงในหน้านี้</small>
+    </div>
+  </form>
+</main>
+
+</body>
+</html>

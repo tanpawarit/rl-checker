@@ -1,0 +1,153 @@
+{# screen 2 — dossier · maps directly to the schema: verdict = findings[].status · section 01 = saw · flags = flags
+   layout: findings column (left) + sticky ad image (right) · hotspot % = box_2d/10 (0-1000 → percent of the image) #}
+<div class="doc-head">
+  <div class="lb">รายงานผลตรวจ · report-only</div>
+  <h1>ผลตรวจโฆษณา{% if result.saw.products_mentioned %} — {{ result.saw.products_mentioned | join(" · ") }}{% endif %}</h1>
+  <div class="meta-ledger">
+    <div class="row"><span class="k">ไฟล์</span><span class="fill"></span><span class="v">{{ filename }}{% if has_caption %} + caption{% endif %}</span></div>
+    <div class="row"><span class="k">ตรวจเมื่อ</span><span class="fill"></span><span class="v">{{ checked_at }}</span></div>
+    <div class="row"><span class="k">ใช้เวลา</span><span class="fill"></span><span class="v">{{ elapsed_s }} s</span></div>
+    <div class="row"><span class="k">ตรวจกับ</span><span class="fill"></span><span class="v">{{ result.findings | length }} rules · dictionary · required text</span></div>
+  </div>
+</div>
+
+<div class="report-grid">
+<div class="report-main">
+
+<div class="verdict" role="list" aria-label="สรุปผลตรวจ {{ result.findings | length }} กฎ">
+  <div role="listitem"><span class="n">{{ fails | length }}</span><span class="cap"><span class="sq fail"></span><span class="lb st-fail">ต้องแก้</span></span><span class="sub">แก้ก่อนใช้งานจริง</span></div>
+  <div role="listitem"><span class="n">{{ reviews | length }}</span><span class="cap"><span class="sq review"></span><span class="lb st-review">ควรตรวจ</span></span><span class="sub">ก้ำกึ่ง — คนชี้ขาด</span></div>
+  <div role="listitem"><span class="n">{{ result.manual_checks | length }}</span><span class="cap"><span class="sq manual"></span><span class="lb st-manual">คนตรวจเพิ่ม</span></span><span class="sub">AI วัดจากไฟล์ไม่ได้</span></div>
+  <div role="listitem"><span class="n">{{ passes | length }}</span><span class="cap"><span class="sq pass"></span><span class="lb st-pass">ผ่าน</span></span><span class="sub">จากทั้งหมด {{ result.findings | length }} กฎ</span></div>
+</div>
+
+<div class="syscheck">
+  <span class="lb">Post-check<br>ธงจากระบบ</span>
+  <div class="body">
+    {% if flags %}
+      {% for flag in flags %}<div class="flag">{{ flag }}</div>{% endfor %}
+      <div class="why">ธงคือผลตรวจ deterministic ที่ช่วยจับการหลอนของโมเดล ใช้ประกอบการอ่านรายงาน</div>
+    {% else %}
+      <div class="ok">ไม่พบธง — ทุกเช็ค deterministic ผ่าน</div>
+    {% endif %}
+  </div>
+</div>
+
+{# 01 evidence #}
+<section class="dsec">
+  <div class="rail"><span class="no">01</span><h2>AI อ่านอะไรจาก ad</h2><span class="cnt">หลักฐานทั้งหมด</span></div>
+  <div class="body">
+    <p class="lead">ทุกคำตัดสินในส่วน 02–05 อ้างหลักฐานชุดนี้ — อ่านก่อนเชื่อ finding</p>
+    <blockquote class="verbatim"><span class="lb">ข้อความที่อ่านได้ · verbatim</span>{{ result.saw.text_verbatim }}</blockquote>
+    <div class="fact-ledger">
+      <div class="row"><span class="k">ผลิตภัณฑ์ที่กล่าวถึง</span><span class="fill"></span><span class="v">{{ result.saw.products_mentioned | join(" · ") if result.saw.products_mentioned else "—" }}</span></div>
+      <div class="row"><span class="k">คำเตือนความเสี่ยง</span><span class="fill"></span>
+        {% if result.saw.warnings_found %}
+          <span class="v">{% for w in result.saw.warnings_found %}{{ w.text }} ({{ w.location }} · {{ w.prominence }}){% if not loop.last %} / {% endif %}{% endfor %}</span>
+        {% else %}
+          <span class="v neg">ไม่พบ</span>
+        {% endif %}
+      </div>
+      <div class="row"><span class="k">เรตที่โชว์</span><span class="fill"></span>
+        {% if result.saw.rates_shown %}
+          <span class="v mono">{% for r in result.saw.rates_shown %}{{ r.product }}: {{ r.rate }}{% if not loop.last %} / {% endif %}{% endfor %}</span>
+        {% else %}
+          <span class="v">—</span>
+        {% endif %}
+      </div>
+      <div class="row"><span class="k">แคปชัน</span><span class="fill"></span><span class="v">{{ "ตรวจรวมกับภาพแล้ว" if has_caption else "ไม่ได้แนบ — เช็คแคปชันจริงตอนโพสต์" }}</span></div>
+    </div>
+    {% if result.saw.visual_notes %}<p class="visual-note"><b>ข้อสังเกตภาพ:</b> {{ result.saw.visual_notes }}</p>{% endif %}
+  </div>
+</section>
+
+{# 02 must fix #}
+<section class="dsec">
+  <div class="rail"><span class="no">02</span><h2>ต้องแก้</h2><span class="cnt">{{ fails | length }} กฎ · เรียง severity</span></div>
+  <div class="body">
+    {% for f in fails %}
+    <article class="finding{% if f.box_2d %} has-box{% endif %}"{% if f.box_2d %} data-fid="{{ f.rule_id }}" tabindex="0"{% endif %}>
+      <div class="f-id-row"><span class="rid">{{ f.rule_id }}</span><span class="st st-fail">fail</span>{% if f.box_2d %}<span class="loc-hint"><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="none" stroke="currentColor"/><rect x="5" y="2.5" width="3.5" height="3" fill="currentColor"/></svg><span class="lb">ดูในรูป</span></span>{% endif %}<span class="sev{% if f.severity == "critical" %} hot{% endif %}">{{ f.severity }}</span></div>
+      <h3>{{ f.title }}</h3>
+      <div class="f-evidence"><span class="lb">หลักฐาน</span>{{ f.evidence }}</div>
+      {% if f.issue %}<p class="f-issue">{{ f.issue }}</p>{% endif %}
+      {% if f.fix_note and f.fix_note != "-" %}<div class="f-fix"><span class="lb">แนวทางแก้</span><span>{{ f.fix_note }}</span></div>{% endif %}
+    </article>
+    {% else %}
+    <p class="empty">— ไม่มี —</p>
+    {% endfor %}
+  </div>
+</section>
+
+{# 03 should review #}
+<section class="dsec">
+  <div class="rail"><span class="no">03</span><h2>ควรตรวจ</h2><span class="cnt">{{ reviews | length }} กฎ · คนชี้ขาด</span></div>
+  <div class="body">
+    {% for f in reviews %}
+    <article class="finding{% if f.box_2d %} has-box{% endif %}"{% if f.box_2d %} data-fid="{{ f.rule_id }}" tabindex="0"{% endif %}>
+      <div class="f-id-row"><span class="rid">{{ f.rule_id }}</span><span class="st st-review">review</span>{% if f.box_2d %}<span class="loc-hint"><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="none" stroke="currentColor"/><rect x="5" y="2.5" width="3.5" height="3" fill="currentColor"/></svg><span class="lb">ดูในรูป</span></span>{% endif %}<span class="sev">{{ f.severity }}</span></div>
+      <h3>{{ f.title }}</h3>
+      <div class="f-evidence"><span class="lb">หลักฐาน</span>{{ f.evidence }}</div>
+      {% if f.issue %}<p class="f-issue">{{ f.issue }}</p>{% endif %}
+      {% if f.fix_note and f.fix_note != "-" %}<div class="f-fix"><span class="lb">แนวทางแก้</span><span>{{ f.fix_note }}</span></div>{% endif %}
+    </article>
+    {% else %}
+    <p class="empty">— ไม่มี —</p>
+    {% endfor %}
+  </div>
+</section>
+
+{# 04 needs a human check #}
+<section class="dsec">
+  <div class="rail"><span class="no">04</span><h2>ให้คนตรวจเพิ่ม</h2><span class="cnt">{{ result.manual_checks | length }} รายการ</span></div>
+  <div class="body">
+    {% for m in result.manual_checks %}
+    <div class="manual-item"><span class="cb" aria-hidden="true"></span><span>{{ m }}</span></div>
+    {% else %}
+    <p class="empty">— ไม่มี —</p>
+    {% endfor %}
+  </div>
+</section>
+
+{# 05 pass #}
+<section class="dsec">
+  <div class="rail"><span class="no">05</span><h2>ผ่าน</h2><span class="cnt">{{ passes | length }} กฎ</span></div>
+  <div class="body">
+    {% if passes %}
+    <div class="pass-ledger">
+      {% for f in passes %}<span class="pid" title="{{ f.title }} — {{ f.evidence }}">{{ f.rule_id }}</span>{% if not loop.last %}<span class="dot-sep">·</span>{% endif %}{% endfor %}
+    </div>
+    <p class="pass-note">ทุกกฎมี evidence กำกับแม้จะผ่าน — ชี้ที่ id เพื่อดู</p>
+    {% else %}
+    <p class="empty">— ไม่มี —</p>
+    {% endif %}
+  </div>
+</section>
+
+<div class="doc-foot">
+  <a class="btn-ghost" href="/">ตรวจใบใหม่</a>
+  <span>รายงานนี้ให้ข้อมูลประกอบการตัดสินใจ — ผู้ตรวจเป็นคนชี้ขาดเสมอ</span>
+  <span class="model">{{ model }} · {{ result.findings | length }} rules</span>
+</div>
+
+</div>{# /report-main #}
+
+{# the checked ad — sticky, with clickable evidence regions (fail/review findings that carry box_2d) #}
+<aside class="ad-panel" aria-label="ชิ้นงานที่ตรวจ">
+  <figure class="thumb-fig big">
+    <div class="art">
+      <div class="ad-stage">
+        <img src="{{ img_data_uri }}" alt="ชิ้นงานที่ตรวจ">
+        {% for f in fails + reviews %}{% if f.box_2d %}
+        <button type="button" class="hotspot {{ 'hs-fail' if f.status == 'fail' else 'hs-review' }}"
+                data-for="{{ f.rule_id }}"
+                style="top:{{ (f.box_2d[0] / 10) | round(2) }}%;left:{{ (f.box_2d[1] / 10) | round(2) }}%;height:{{ ((f.box_2d[2] - f.box_2d[0]) / 10) | round(2) }}%;width:{{ ((f.box_2d[3] - f.box_2d[1]) / 10) | round(2) }}%"
+                aria-label="ตำแหน่งของ {{ f.rule_id }} {{ f.title }} ในรูป"></button>
+        {% endif %}{% endfor %}
+      </div>
+    </div>
+    <figcaption class="lb">ชิ้นงานที่ตรวจ · จิ้มกรอบ ↔ finding ได้สองทาง</figcaption>
+  </figure>
+</aside>
+
+</div>{# /report-grid #}
