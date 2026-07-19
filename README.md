@@ -1,68 +1,67 @@
 # Ad Compliance Checker (เงินให้ใจ)
 
-An AI system that checks loan ads against the full set of compliance rules and returns a **per-rule report (pass/fail/review) with evidence**
-for a human to decide on — the system **does not approve/block by itself**.
+Checks loan ads against our compliance rules and gives you a per-rule report (pass / fail / review) with evidence. It doesn't approve or block anything — a person still makes the call.
 
-- Brain: Gemini on Cloud Run (FastAPI) — 1 multimodal call, implicit caching
-- Front-end: a web UI in `app/web/` (Jinja2 + HTMX, เงินให้ใจ brand theme — ADR-0006; the neutral contract is `POST /check`)
-- Source of truth: Excel → hand-extracted verbatim into `catalog/`
+**How it works:** you attach an ad image (+ caption), Gemini reads it in one pass, and the report renders on the same page.
 
-Full design in [spec.md](spec.md) · domain terms in [CONTEXT.md](CONTEXT.md) · decisions that diverge from the spec in [docs/adr/](docs/adr/)
+- **Brain** — Gemini on Cloud Run (FastAPI). The contract is just `POST /check`.
+- **Front-end** — a small web UI in `app/web/` (Jinja2 + HTMX).
+- **Rules** — hand-extracted from the source Excel into `catalog/` (35 rules).
 
-## Structure
+Deeper docs: [spec.md](spec.md) for the full design, [CONTEXT.md](CONTEXT.md) for domain terms, [docs/adr/](docs/adr/) for decisions that diverge from the spec.
+
+## Project layout
 
 ```
-catalog/   rule data (hand-extracted from Excel, verbatim) — 35 rules · dictionary · required text per product
-app/       the brain: schemas · compile_catalog · checker · postcheck · pipeline · config · main
-app/web/   the front-end: routes + templates (Jinja2) + static (htmx, logo) — talks to the brain only via pipeline
-scripts/   try_check.py — harness that hits the real Gemini (verify by hand)
+catalog/   the rules — 35 of them, plus the dictionary and required text per product
+app/       the brain — schemas, checker, pipeline, config, main
+app/web/   the web UI — routes, templates, static (talks to the brain via the pipeline only)
+scripts/   try_check.py — run a real Gemini check by hand
 tests/     unit tests for the deterministic layer (no Gemini calls)
-docs/adr/  decision records (6 of them) · docs/design/ the approved ui mockup
+docs/adr/  decision records · docs/design/ the approved UI mockup
 ```
 
-## Key decisions (diverging from the original spec — from grilling)
-
-| # | Changed to | ADR |
-|---|---|---|
-| 1 | implicit caching (drop the explicit cache lifecycle) | [0001](docs/adr/0001-implicit-context-caching.md) |
-| 2 | a single card, done — drop `/report` + persistence + report.py | [0002](docs/adr/0002-card-only-report-no-persistence.md) |
-| 3 | postcheck required_text two-tier (always the warning + a rate per product); product inferred entirely | [0003](docs/adr/0003-postcheck-required-text-two-tier.md) |
-| 4 | ~~front-end = a Bot Framework bot on the same Cloud Run~~ (superseded by #6) | [0004](docs/adr/0004-teams-bot-framework-on-cloud-run.md) |
-| 5 | model = Gemini 3.1 Pro on the global endpoint · keep the family-3 temperature/thinking/media defaults | [0005](docs/adr/0005-gemini-3-1-pro-default-config.md) |
-| 6 | remove Teams — front-end = a web UI in the same project (brain/`/check` contract unchanged) | [0006](docs/adr/0006-web-ui-replaces-teams.md) |
-
-## Setup (dev)
+## Get set up
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-> VS Code: set the interpreter to `.venv/bin/python` (otherwise Pyright complains about unresolved imports — that's config, not a bug)
+> In VS Code, point the interpreter at `.venv/bin/python`, or Pyright will complain about imports.
 
-## Run the tests (deterministic — no Gemini calls)
+## Run it
+
+**Tests** (no Gemini, no key needed):
 
 ```bash
-. .venv/bin/activate && python -m pytest tests -q
+python -m pytest tests -q
 ```
 
-## Run the web UI (dev)
+**Web UI** (needs a Gemini key):
 
 ```bash
-cp .env.example .env   # then fill in GEMINI_API_KEY
+cp .env.example .env   # add your GEMINI_API_KEY (from aistudio.google.com)
 uvicorn app.main:app --reload
 ```
-Open http://localhost:8000 → attach an ad image (+ caption) → ตรวจโฆษณา → the dossier report renders in the same page
 
-## Verify the brain against the real Gemini (run it yourself)
+Then open http://localhost:8000, attach an ad, and hit ตรวจโฆษณา.
+
+**One-off check from the terminal:**
 
 ```bash
-cp .env.example .env   # then fill in GEMINI_API_KEY (key from aistudio.google.com)
 python scripts/try_check.py path/to/ad.jpg "ad copy (if any)"
 ```
-Prints the CheckResult (JSON) + post_check flags + logs `cached_content_token_count` (to see cache hits)
 
 ## Deploy (Cloud Run)
+
+First store the key as a secret (don't pass it in `--set-env-vars` — it can leak into logs):
+
+```bash
+echo -n "<key>" | gcloud secrets create gemini-api-key --data-file=-
+```
+
+Then deploy:
 
 ```bash
 gcloud run deploy ad-compliance \
@@ -73,10 +72,22 @@ gcloud run deploy ad-compliance \
   --set-secrets GEMINI_API_KEY=gemini-api-key:latest
 ```
 
-> `--set-secrets` requires creating the secret first: `echo -n "<key>" | gcloud secrets create gemini-api-key --data-file=-` (don't put the key directly in `--set-env-vars` — it can surface in the console/logs)
+> Auth mode (public / IAM / IAP) isn't decided yet — sort that out before exposing the UI beyond the team.
 
-> The auth mode (public/IAM/IAP) is still undecided — decide it before exposing the web UI beyond the team
+## Before production
 
-## What the user needs to do next
-1. Confirm the rate numbers in `catalog/required_text.yaml` against the latest Excel before production use
-2. Run `scripts/try_check.py` (or the web UI) to verify end-to-end against real images
+- Double-check the rate numbers in `catalog/required_text.yaml` against the latest Excel.
+- Run `scripts/try_check.py` (or the UI) against real ad images to confirm it works end to end.
+
+## Key decisions
+
+These diverge from the original spec — see the ADRs for the why.
+
+| # | What changed | ADR |
+|---|---|---|
+| 1 | Implicit caching (dropped the explicit cache lifecycle) | [0001](docs/adr/0001-implicit-context-caching.md) |
+| 2 | One report card — dropped `/report`, persistence, and report.py | [0002](docs/adr/0002-card-only-report-no-persistence.md) |
+| 3 | Two-tier required text (always the warning + a per-product rate); product inferred | [0003](docs/adr/0003-postcheck-required-text-two-tier.md) |
+| 4 | ~~Teams bot on Cloud Run~~ (replaced by #6) | [0004](docs/adr/0004-teams-bot-framework-on-cloud-run.md) |
+| 5 | Model = Gemini 3.1 Pro, global endpoint, family-3 defaults | [0005](docs/adr/0005-gemini-3-1-pro-default-config.md) |
+| 6 | Web UI instead of Teams (brain contract unchanged) | [0006](docs/adr/0006-web-ui-replaces-teams.md) |
