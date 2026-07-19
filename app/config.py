@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()  # real env always wins — load_dotenv does not override already-set variables
 
-DEFAULT_MODEL = "gemini-3.5-flash"  # largest generally-available model (ADR-0005)
+DEFAULT_MODEL = "gemini-3.1-pro-preview"  # largest model actually callable as of Jul 2026 (ADR-0005)
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class LLMConfig:
     model: str = DEFAULT_MODEL
     # None = do not send thinking_config, let the model use its default (3.1 Pro = high, ADR-0005)
     # Allowed values: minimal | low | medium | high
-    thinking_level: str | None = "medium"
+    thinking_level: str | None = None
 
     @classmethod
     def from_env(cls) -> "LLMConfig":

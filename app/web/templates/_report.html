@@ -1,5 +1,6 @@
 {# screen 2 — dossier · maps directly to the schema: verdict = findings[].status · section 01 = saw · flags = flags
-   layout: findings column (left) + sticky ad image (right) · hotspot % = box_2d/10 (0-1000 → percent of the image) #}
+   layout: findings column (left) + sticky ad image (right) · hotspot % = box_2d/10 (0-1000 → percent of the image)
+   every finding is a collapsed <details> row — click to view; opening a boxed finding lights its region up #}
 <div class="doc-head">
   <div class="lb">รายงานผลตรวจ · report-only</div>
   <h1>ผลตรวจโฆษณา{% if result.saw.products_mentioned %} — {{ result.saw.products_mentioned | join(" · ") }}{% endif %}</h1>
@@ -61,21 +62,28 @@
   </div>
 </section>
 
+{% macro finding_row(f, status_class) %}
+<details class="finding{% if f.box_2d %} has-box{% endif %}"{% if f.box_2d %} data-fid="{{ f.rule_id }}"{% endif %}>
+  <summary>
+    <span class="rid">{{ f.rule_id }}</span>
+    <span class="st {{ status_class }}">{{ f.status }}</span>
+    <span class="f-title">{{ f.title }}</span>
+    {% if f.box_2d %}<span class="loc-hint"><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="none" stroke="currentColor"/><rect x="5" y="2.5" width="3.5" height="3" fill="currentColor"/></svg><span class="lb">ดูในรูป</span></span>{% endif %}
+    <span class="sev{% if f.severity == "critical" %} hot{% endif %}">{{ f.severity }}</span>
+  </summary>
+  <div class="f-body">
+    <div class="f-evidence"><span class="lb">หลักฐาน</span>{{ f.evidence }}</div>
+    {% if f.issue %}<p class="f-issue">{{ f.issue }}</p>{% endif %}
+    {% if f.fix_note and f.fix_note != "-" %}<div class="f-fix"><span class="lb">แนวทางแก้</span><span>{{ f.fix_note }}</span></div>{% endif %}
+  </div>
+</details>
+{% endmacro %}
+
 {# 02 must fix #}
 <section class="dsec">
   <div class="rail"><span class="no">02</span><h2>ต้องแก้</h2><span class="cnt">{{ fails | length }} กฎ · เรียง severity</span></div>
   <div class="body">
-    {% for f in fails %}
-    <article class="finding{% if f.box_2d %} has-box{% endif %}"{% if f.box_2d %} data-fid="{{ f.rule_id }}" tabindex="0"{% endif %}>
-      <div class="f-id-row"><span class="rid">{{ f.rule_id }}</span><span class="st st-fail">fail</span>{% if f.box_2d %}<span class="loc-hint"><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="none" stroke="currentColor"/><rect x="5" y="2.5" width="3.5" height="3" fill="currentColor"/></svg><span class="lb">ดูในรูป</span></span>{% endif %}<span class="sev{% if f.severity == "critical" %} hot{% endif %}">{{ f.severity }}</span></div>
-      <h3>{{ f.title }}</h3>
-      <div class="f-evidence"><span class="lb">หลักฐาน</span>{{ f.evidence }}</div>
-      {% if f.issue %}<p class="f-issue">{{ f.issue }}</p>{% endif %}
-      {% if f.fix_note and f.fix_note != "-" %}<div class="f-fix"><span class="lb">แนวทางแก้</span><span>{{ f.fix_note }}</span></div>{% endif %}
-    </article>
-    {% else %}
-    <p class="empty">— ไม่มี —</p>
-    {% endfor %}
+    {% for f in fails %}{{ finding_row(f, "st-fail") }}{% else %}<p class="empty">— ไม่มี —</p>{% endfor %}
   </div>
 </section>
 
@@ -83,17 +91,7 @@
 <section class="dsec">
   <div class="rail"><span class="no">03</span><h2>ควรตรวจ</h2><span class="cnt">{{ reviews | length }} กฎ · คนชี้ขาด</span></div>
   <div class="body">
-    {% for f in reviews %}
-    <article class="finding{% if f.box_2d %} has-box{% endif %}"{% if f.box_2d %} data-fid="{{ f.rule_id }}" tabindex="0"{% endif %}>
-      <div class="f-id-row"><span class="rid">{{ f.rule_id }}</span><span class="st st-review">review</span>{% if f.box_2d %}<span class="loc-hint"><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="none" stroke="currentColor"/><rect x="5" y="2.5" width="3.5" height="3" fill="currentColor"/></svg><span class="lb">ดูในรูป</span></span>{% endif %}<span class="sev">{{ f.severity }}</span></div>
-      <h3>{{ f.title }}</h3>
-      <div class="f-evidence"><span class="lb">หลักฐาน</span>{{ f.evidence }}</div>
-      {% if f.issue %}<p class="f-issue">{{ f.issue }}</p>{% endif %}
-      {% if f.fix_note and f.fix_note != "-" %}<div class="f-fix"><span class="lb">แนวทางแก้</span><span>{{ f.fix_note }}</span></div>{% endif %}
-    </article>
-    {% else %}
-    <p class="empty">— ไม่มี —</p>
-    {% endfor %}
+    {% for f in reviews %}{{ finding_row(f, "st-review") }}{% else %}<p class="empty">— ไม่มี —</p>{% endfor %}
   </div>
 </section>
 
@@ -109,18 +107,12 @@
   </div>
 </section>
 
-{# 05 pass #}
+{# 05 pass — same click-to-view rows (evidence stays behind a click, no hover tooltips) #}
 <section class="dsec">
   <div class="rail"><span class="no">05</span><h2>ผ่าน</h2><span class="cnt">{{ passes | length }} กฎ</span></div>
   <div class="body">
-    {% if passes %}
-    <div class="pass-ledger">
-      {% for f in passes %}<span class="pid" title="{{ f.title }} — {{ f.evidence }}">{{ f.rule_id }}</span>{% if not loop.last %}<span class="dot-sep">·</span>{% endif %}{% endfor %}
-    </div>
-    <p class="pass-note">ทุกกฎมี evidence กำกับแม้จะผ่าน — ชี้ที่ id เพื่อดู</p>
-    {% else %}
-    <p class="empty">— ไม่มี —</p>
-    {% endif %}
+    {% for f in passes %}{{ finding_row(f, "st-pass") }}{% else %}<p class="empty">— ไม่มี —</p>{% endfor %}
+    {% if passes %}<p class="pass-note">ทุกกฎมี evidence กำกับแม้จะผ่าน — คลิกที่กฎเพื่อดู</p>{% endif %}
   </div>
 </section>
 
@@ -146,7 +138,7 @@
         {% endif %}{% endfor %}
       </div>
     </div>
-    <figcaption class="lb">ชิ้นงานที่ตรวจ · จิ้มกรอบ ↔ finding ได้สองทาง</figcaption>
+    <figcaption class="lb">ชิ้นงานที่ตรวจ · คลิกกรอบ ↔ finding ได้สองทาง</figcaption>
   </figure>
 </aside>
 

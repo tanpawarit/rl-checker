@@ -51,7 +51,7 @@ body {
   html { scroll-behavior: auto; }
 }
 button { font: inherit; cursor: pointer; }
-:is(button, a, input, textarea, [tabindex]):focus-visible {
+:is(button, a, input, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
   border-radius: 2px;
@@ -377,24 +377,40 @@ form.htmx-request .checking { display: block; }
 .visual-note { margin: 18px 0 0; font-size: 14px; color: var(--muted); max-width: 60ch; }
 .visual-note b { color: var(--ink); font-weight: 600; }
 
-/* findings */
-.finding { padding: 20px 0; border-top: 1px solid var(--hair-soft); }
-.finding:first-of-type { border-top: none; padding-top: 0; }
-.f-id-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
-.f-id-row .rid { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
-.f-id-row .st {
+/* findings — collapsed <details> rows: click to view (no hover reveals) */
+.finding { border-top: 1px solid var(--hair-soft); }
+.finding:first-of-type { border-top: none; }
+.finding summary {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 14px 0;
+  cursor: pointer;
+  list-style: none;
+}
+.finding summary::-webkit-details-marker { display: none; }
+.finding summary::after {
+  content: "+";
+  font-family: var(--font-mono); font-size: 14px;
+  color: var(--muted);
+  flex: none;
+}
+.finding[open] > summary::after { content: "−"; color: var(--blue); }
+.finding summary:hover .f-title { color: var(--ink-head); }
+.finding .rid { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+.finding .st {
   font-family: var(--font-mono);
   font-size: 11px; font-weight: 500;
   letter-spacing: .14em; text-transform: uppercase;
 }
-.f-id-row .sev {
+.finding .f-title { flex: 1 1 200px; font-size: 15.5px; font-weight: 600; color: var(--ink); line-height: 1.5; }
+.finding .sev {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
   color: var(--muted);
 }
 .sev.hot { color: var(--fail); }
-.finding h3 { margin: 0 0 12px; font-size: 17px; font-weight: 600; color: var(--ink); line-height: 1.45; }
+.finding.active .f-title { color: var(--blue); }
+.f-body { padding: 2px 0 20px; }
 .f-evidence {
   margin: 0 0 12px;
   padding-left: 20px;
@@ -422,11 +438,8 @@ form.htmx-request .checking { display: block; }
   transform: translateY(2px);
 }
 
-/* pass */
-.pass-ledger { display: flex; flex-wrap: wrap; gap: 6px 0; align-items: baseline; font-family: var(--font-mono); font-size: 13px; }
-.pass-ledger .pid { color: var(--pass); padding: 2px 0; cursor: help; }
-.pass-ledger .dot-sep { color: var(--hair); margin: 0 10px; }
-.pass-note { margin: 12px 0 0; font-size: 12.5px; color: var(--muted); }
+/* pass rows — lighter voice than fail/review but the same click-to-view behaviour */
+.pass-note { margin: 14px 0 0; font-size: 12.5px; color: var(--muted); }
 
 .doc-foot {
   margin-top: 8px; padding-top: 26px;

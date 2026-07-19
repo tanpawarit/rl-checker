@@ -10,18 +10,14 @@ result, only flags it):
   5) box_2d (when present) must be a sane [ymin, xmin, ymax, xmax] box in 0-1000
 
 All matching shares the single normalize() · no extra deps (no fuzzy matching — rate numbers must be exact)
-The catalog is read+parsed once (memoized) — static for the process lifetime (restart when the catalog changes)
+The catalog is read+parsed once by app.catalog (this file never touches the YAML shape itself)
 """
 
-import functools
 import pathlib
 import re
 import unicodedata
-from typing import NamedTuple
 
-import yaml
-
-from app.compile_catalog import CATALOG_DIR
+from app.catalog import CATALOG_DIR, load_catalog
 from app.schemas import CheckResult
 
 _ZW = dict.fromkeys(map(ord, "​‌‍﻿"), None)
@@ -43,32 +39,6 @@ def normalize(s: str) -> str:
 
 def _quoted_spans(text: str) -> list[str]:
     return [a or b for a, b in _QUOTE_RE.findall(text or "")]
-
-
-# ---- catalog: read+parse once (deterministic) ----------------------------------
-class _Catalog(NamedTuple):
-    rule_ids: frozenset[str]
-    refs: dict[str, list[str]]  # rule_id → [required_text keys] (from required_text_ref)
-    required: dict[str, dict]  # key → {product, warning, applies_to, rate_text} (required_text.yaml warn)
-    baseline: str  # the risk warning required in every ad — the shared `warning` of all products, "" if none
-
-
-@functools.lru_cache(maxsize=None)
-def _load_catalog(catalog_dir: str | pathlib.Path = CATALOG_DIR) -> _Catalog:
-    base = pathlib.Path(catalog_dir)
-    rule_ids: set[str] = set()
-    refs: dict[str, list[str]] = {}
-    for f in (base / "rules").glob("*.yaml"):
-        data = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
-        for r in data.get("rules") or []:
-            rule_ids.add(r["id"])
-            keys = [ref.split(".")[-1] for ref in r.get("required_text_ref") or []]
-            if keys:
-                refs[r["id"]] = keys
-    rt = yaml.safe_load((base / "required_text.yaml").read_text(encoding="utf-8")) or {}
-    warn = rt.get("warn") or {}
-    baseline = next((v["warning"] for v in warn.values() if v.get("warning")), "")
-    return _Catalog(frozenset(rule_ids), refs, warn, baseline)
 
 
 def _matches_product(applies_to: list[str], products_norm: str) -> bool:
@@ -94,7 +64,7 @@ def _required_candidates(rate_text: str) -> list[str]:
 
 def post_check(result: CheckResult, catalog_dir: str | pathlib.Path = CATALOG_DIR) -> list[str]:
     flags: list[str] = []
-    cat = _load_catalog(catalog_dir)
+    cat = load_catalog(catalog_dir)
 
     saw_text_n = normalize(result.saw.text_verbatim)
     products_n = normalize(" ".join(result.saw.products_mentioned))
@@ -114,8 +84,9 @@ def post_check(result: CheckResult, catalog_dir: str | pathlib.Path = CATALOG_DI
 
     # 3) saw ↔ findings — no warning found (warnings_found empty) yet a required-text rule still passes
     if not has_warning:
+        refs = cat.required_text_refs
         for fnd in result.findings:
-            if fnd.status == "pass" and fnd.rule_id in cat.refs:
+            if fnd.status == "pass" and fnd.rule_id in refs:
                 flags.append(
                     f"saw↔findings ขัดกัน: [{fnd.rule_id}] pass แต่ saw ไม่พบคำเตือน (warnings_found ว่าง)"
                 )
@@ -123,13 +94,13 @@ def post_check(result: CheckResult, catalog_dir: str | pathlib.Path = CATALOG_DI
     # 4) required_text match — the risk warning (always) + per product at least one rate_text variant
     if cat.baseline and normalize(cat.baseline) not in saw_text_n:
         flags.append(f'required_text baseline: ไม่พบคำเตือน "{cat.baseline}" ใน ad')
-    for key, rt in cat.required.items():
-        if not _matches_product(rt.get("applies_to") or [], products_n):
+    for rt in cat.required_text:
+        if not _matches_product(rt.applies_to, products_n):
             continue
-        variants = [normalize(c) for c in _required_candidates(rt.get("rate_text") or "")]
+        variants = [normalize(c) for c in _required_candidates(rt.rate_text)]
         if variants and not any(v and v in saw_text_n for v in variants):
             flags.append(
-                f"required_text per-product: ad อ้างผลิตภัณฑ์ '{key}' "
+                f"required_text per-product: ad อ้างผลิตภัณฑ์ '{rt.key}' "
                 f"แต่ข้อความบังคับ (คำเตือน+เรต) ไม่ครบ/ไม่ตรงใน saw → ยืนยัน fail"
             )
 

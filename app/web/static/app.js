@@ -1,6 +1,7 @@
 /* app.js — no framework · two independent behaviours:
    1) dropzone UX (preview, drag-drop) — elements exist only on the form page
-   2) finding ↔ hotspot sync — delegated on document so it survives HTMX swaps */
+   2) finding <details> ↔ hotspot sync — delegated on document so it survives HTMX swaps
+      (opening a boxed finding lights its region; clicking a region opens its finding) */
 (function () {
   "use strict";
 
@@ -47,14 +48,13 @@
   }
 
   /* ---- 2) finding ↔ hotspot ---- */
-  var activate = function (fid, scrollToCard) {
+  var activate = function (fid) {
     var stage = document.querySelector(".ad-stage");
-    var wasActive = document.querySelector('.finding.active[data-fid="' + fid + '"]');
     document.querySelectorAll(".finding.active, .hotspot.active").forEach(function (el) {
       el.classList.remove("active");
     });
     if (stage) stage.classList.remove("has-active");
-    if (wasActive) return; // second click on the same finding = toggle off
+    if (!fid) return;
 
     var card = document.querySelector('.finding[data-fid="' + fid + '"]');
     var spot = document.querySelector('.hotspot[data-for="' + fid + '"]');
@@ -63,29 +63,37 @@
       spot.classList.add("active");
       if (stage) stage.classList.add("has-active");
     }
-    if (scrollToCard && card) {
-      card.scrollIntoView({ behavior: "smooth", block: "center" });
-    } else if (spot && window.matchMedia("(max-width: 1080px)").matches) {
-      spot.scrollIntoView({ behavior: "smooth", block: "center" }); // image is off-screen on small layouts
-    }
   };
+
+  // toggle doesn't bubble — listen in the capture phase
+  document.addEventListener(
+    "toggle",
+    function (e) {
+      var d = e.target;
+      if (!d.classList || !d.classList.contains("finding")) return;
+      var fid = d.getAttribute("data-fid");
+      if (d.open && fid) {
+        activate(fid);
+        if (window.matchMedia("(max-width: 1120px)").matches) {
+          var spot = document.querySelector('.hotspot[data-for="' + fid + '"]');
+          if (spot) spot.scrollIntoView({ behavior: "smooth", block: "center" }); // image sits above on small layouts
+        }
+      } else if (!d.open && d.classList.contains("active")) {
+        activate(null);
+      }
+    },
+    true
+  );
 
   document.addEventListener("click", function (e) {
     var spot = e.target.closest(".hotspot");
-    if (spot) {
-      activate(spot.getAttribute("data-for"), true);
-      return;
-    }
-    var card = e.target.closest(".finding.has-box");
-    if (card) activate(card.getAttribute("data-fid"), false);
-  });
-
-  document.addEventListener("keydown", function (e) {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    var card = e.target.closest ? e.target.closest(".finding.has-box") : null;
+    if (!spot) return;
+    var fid = spot.getAttribute("data-for");
+    var card = document.querySelector('.finding[data-fid="' + fid + '"]');
     if (card) {
-      e.preventDefault();
-      activate(card.getAttribute("data-fid"), false);
+      card.open = true; // triggers the toggle handler → activate
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
     }
+    activate(fid);
   });
 })();
