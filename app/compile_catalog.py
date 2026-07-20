@@ -1,7 +1,8 @@
 """app/compile_catalog.py — render the Catalog into the LLM context prefix · spec.md §5
 
 Formats the parsed Catalog (app/catalog.py) into one string used as the first content block
-(implicit caching relies on a repeated prefix).
+(implicit caching relies on a repeated prefix). A pure function of the Catalog — no file I/O;
+the caller (run_check) does the one load_catalog().
 
 Important: the output must be byte-for-byte stable when the catalog is unchanged
   (ordering is fixed by the Catalog · no timestamps or any variable content).
@@ -9,13 +10,10 @@ Important: the output must be byte-for-byte stable when the catalog is unchanged
   referenced in checker.py's INSTRUCTION — changing them here means updating the prompt there to match.
 """
 
-import pathlib
-
-from app.catalog import CATALOG_DIR, Catalog, Dictionary, Rule, load_catalog
+from app.catalog import Catalog, Dictionary, Rule
 
 
-def compile_catalog(catalog_dir: str | pathlib.Path = CATALOG_DIR) -> str:
-    catalog = load_catalog(catalog_dir)
+def compile_catalog(catalog: Catalog) -> str:
     parts: list[str] = ["<compliance_rules>"]
     for cat in catalog.categories:  # judgment rules, ordered by file name (01_, 02_, ...)
         parts.append(f"\n## หมวด: {cat.category}")

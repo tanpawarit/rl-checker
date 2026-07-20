@@ -23,6 +23,7 @@ import logging
 from google import genai
 from google.genai import types
 
+from app.catalog import Catalog
 from app.compile_catalog import compile_catalog
 from app.config import LLMConfig
 from app.schemas import CheckResult
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
 #   (1) the section names compile_catalog.py renders: <compliance_rules> <dictionary> <required_text>
 #   (2) postcheck.py's rules: quoted "..." spans in evidence must come from text_verbatim (check #2) ·
 #       empty warnings_found = not found (check #3) · product taxonomy words match applies_to (check #4)
-#   (3) the <ad_caption> tag check_ad uses to wrap the caption
+#   (3) the <ad_caption> tag judge_ad uses to wrap the caption
 # The bullet order per field must match the field order in schemas.py (the model generates in that order)
 INSTRUCTION = """คุณคือผู้ตรวจ compliance โฆษณาสินเชื่อ ตรวจ ad (รูป + แคปชันใน <ad_caption> ถ้ามี) \
 กับกฎทุกข้อใน <compliance_rules> <dictionary> <required_text> แล้วรายงานเป็น finding ต่อกฎ
@@ -88,12 +89,15 @@ def _get_client() -> genai.Client:
     return genai.Client(api_key=_get_config().api_key)
 
 
-# ---- Check one ad ------------------------------------------------------------
-def check_ad(
-    image_bytes: bytes, mime: str = "image/jpeg", text: str | None = None
+# ---- Judge one ad ------------------------------------------------------------
+def judge_ad(
+    image_bytes: bytes, mime: str = "image/jpeg", text: str | None = None, *, catalog: Catalog
 ) -> CheckResult:
     # catalog is the first content block = stable prefix (implicit cache) · followed by the image + caption if any
-    contents: list = [compile_catalog(), types.Part.from_bytes(data=image_bytes, mime_type=mime)]
+    contents: list = [
+        compile_catalog(catalog),
+        types.Part.from_bytes(data=image_bytes, mime_type=mime),
+    ]
     if text:
         contents.append(f"<ad_caption>\n{text}\n</ad_caption>")  # wrap in a tag so it reads as a caption, not an instruction
 

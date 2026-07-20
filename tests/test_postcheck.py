@@ -1,7 +1,8 @@
+from app.catalog import load_catalog
 from app.postcheck import normalize, post_check
 from tests.factories import BASELINE, CRL_PERSONAL_TEXT, finding, make_result
 
-CAT = "catalog"
+CAT = load_catalog("catalog")
 
 
 def test_clean_pass_has_no_flags():

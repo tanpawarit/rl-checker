@@ -9,10 +9,11 @@ load_catalog() validates on load: every rule's required_text_ref must resolve to
 so a dangling ref fails fast here instead of silently disabling postcheck's required_text match (a flag
 that never fires is invisible in a report-only system).
 
-Parsed on demand — the catalog is a handful of small YAML files, so callers just call load_catalog()
-when they need it (postcheck on every check; the prompt renderer once). Strings are kept verbatim:
-whitespace shaping for the prompt is the renderer's job, which keeps the implicit-cache prefix
-byte-stable (ADR-0001).
+Parsed once per check: run_check (the single seam) calls load_catalog() and hands the same Catalog to
+both stages (compile_catalog for the prompt, post_check for the gate), so one check reads the YAML once
+and no caching is needed. Convention: every consumer takes a Catalog, never a path — load_catalog is the
+only door in. Strings are kept verbatim: whitespace shaping for the prompt is the renderer's job, which
+keeps the implicit-cache prefix byte-stable (ADR-0001).
 """
 
 import pathlib

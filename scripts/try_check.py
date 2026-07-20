@@ -1,4 +1,4 @@
-"""scripts/try_check.py — local harness that runs check_ad against a real image (for the user to verify by hand)
+"""scripts/try_check.py — local harness that runs judge_ad against a real image (for the user to verify by hand)
 
 Requires:
   - venv + deps:  python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt

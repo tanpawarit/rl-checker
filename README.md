@@ -88,6 +88,5 @@ These diverge from the original spec — see the ADRs for the why.
 | 1 | Implicit caching (dropped the explicit cache lifecycle) | [0001](docs/adr/0001-implicit-context-caching.md) |
 | 2 | One report card — dropped `/report`, persistence, and report.py | [0002](docs/adr/0002-card-only-report-no-persistence.md) |
 | 3 | Two-tier required text (always the warning + a per-product rate); product inferred | [0003](docs/adr/0003-postcheck-required-text-two-tier.md) |
-| 4 | ~~Teams bot on Cloud Run~~ (replaced by #6) | [0004](docs/adr/0004-teams-bot-framework-on-cloud-run.md) |
 | 5 | Model = Gemini 3.1 Pro, global endpoint, family-3 defaults | [0005](docs/adr/0005-gemini-3-1-pro-default-config.md) |
 | 6 | Web UI instead of Teams (brain contract unchanged) | [0006](docs/adr/0006-web-ui-replaces-teams.md) |

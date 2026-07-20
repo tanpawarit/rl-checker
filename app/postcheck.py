@@ -10,14 +10,13 @@ result, only flags it):
   5) box_2d (when present) must be a sane [ymin, xmin, ymax, xmax] box in 0-1000
 
 All matching shares the single normalize() · no extra deps (no fuzzy matching — rate numbers must be exact)
-The catalog is read+parsed once by app.catalog (this file never touches the YAML shape itself)
+The Catalog is passed in by run_check (parsed once per check); this file never touches the YAML shape itself
 """
 
-import pathlib
 import re
 import unicodedata
 
-from app.catalog import CATALOG_DIR, load_catalog
+from app.catalog import Catalog
 from app.schemas import CheckResult
 
 _ZW = dict.fromkeys(map(ord, "​‌‍﻿"), None)
@@ -62,9 +61,8 @@ def _required_candidates(rate_text: str) -> list[str]:
     return out
 
 
-def post_check(result: CheckResult, catalog_dir: str | pathlib.Path = CATALOG_DIR) -> list[str]:
+def post_check(result: CheckResult, catalog: Catalog) -> list[str]:
     flags: list[str] = []
-    cat = load_catalog(catalog_dir)
 
     saw_text_n = normalize(result.saw.text_verbatim)
     products_n = normalize(" ".join(result.saw.products_mentioned))
@@ -72,7 +70,7 @@ def post_check(result: CheckResult, catalog_dir: str | pathlib.Path = CATALOG_DI
 
     # 1) rule_id must actually exist in the catalog
     for fnd in result.findings:
-        if fnd.rule_id not in cat.rule_ids:
+        if fnd.rule_id not in catalog.rule_ids:
             flags.append(f"หลอน: rule_id ไม่มีใน catalog — {fnd.rule_id}")
 
     # 2) evidence ⊆ saw (soft) — only spans inside quotation marks
@@ -84,7 +82,7 @@ def post_check(result: CheckResult, catalog_dir: str | pathlib.Path = CATALOG_DI
 
     # 3) saw ↔ findings — no warning found (warnings_found empty) yet a required-text rule still passes
     if not has_warning:
-        refs = cat.required_text_refs
+        refs = catalog.required_text_refs
         for fnd in result.findings:
             if fnd.status == "pass" and fnd.rule_id in refs:
                 flags.append(
@@ -92,9 +90,9 @@ def post_check(result: CheckResult, catalog_dir: str | pathlib.Path = CATALOG_DI
                 )
 
     # 4) required_text match — the risk warning (always) + per product at least one rate_text variant
-    if cat.baseline and normalize(cat.baseline) not in saw_text_n:
-        flags.append(f'required_text baseline: ไม่พบคำเตือน "{cat.baseline}" ใน ad')
-    for rt in cat.required_text:
+    if catalog.baseline and normalize(catalog.baseline) not in saw_text_n:
+        flags.append(f'required_text baseline: ไม่พบคำเตือน "{catalog.baseline}" ใน ad')
+    for rt in catalog.required_text:
         if not _matches_product(rt.applies_to, products_n):
             continue
         variants = [normalize(c) for c in _required_candidates(rt.rate_text)]
